@@ -1,6 +1,10 @@
 #!/bin/bash
 
 function startLog {
+    if [ ! -d "$LOG_DIR" ]; then
+        mkdir "$LOG_DIR"
+    fi
+
     LOG_FILE="$LOG_DIR/$(date '+%Y%m%d_%H%M%S').log"
     touch $LOG_FILE
 }
