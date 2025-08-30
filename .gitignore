@@ -1,2 +1,5 @@
-log/
-.env
+/logs/*.log
+!/logs
+/obj/
+/autopen
+settings.json

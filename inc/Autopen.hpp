@@ -6,6 +6,7 @@
 #include <cstring>
 #include <optional>
 #include <string_view>
+#include <regex>
 
 #include <vector>
 
@@ -24,10 +25,10 @@ private:
     std::optional<std::string> _ip;
     std::optional<std::string> _domain;
     std::optional<std::string> _userAgent;
-    Logger _log;
     
     bool _exportReport = false;
     bool _graphicMode = false;
+    bool _debugMode = false;
     
     void handleIpOrDomain(std::string_view value);
 };

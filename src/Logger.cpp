@@ -2,12 +2,10 @@
 
 namespace fs = std::filesystem;
 
-Logger::Logger() {
-    init();
-    log("Iniciando aplicación...");
-}
-
-Logger::~Logger() {}
+// Static member definitions
+std::ofstream Logger::_logger;
+bool Logger::_initialized = false;
+bool Logger::debug = false;
 
 void Logger::init(const std::string& logDir) {
     if (_initialized) return;
@@ -21,26 +19,27 @@ void Logger::init(const std::string& logDir) {
     }
 
     _initialized = true;
-    log("---------- AUTOPEN LOG ----------");
 }
 
 void Logger::log(const std::string& message) {
     if (!_initialized) {
-        init();
+        std::cerr << "[Logger] Not initialized. Message: " << message << std::endl;
+        return;
     }
-    std::cerr << message << std::endl;
+    _logger << message << std::endl;
+
+    if (debug) {
+        std::cerr << message << std::endl;
+    }
 }
 
 void Logger::error(const std::string& message){
-    //*message.insert(0, "[ERROR] ");
-    log(message);
+    log("[ERROR] " + message);
     exit(1);
 }
 
 void Logger::warning(const std::string& message) {
-    //*message.insert(0, "[WARNING] ");
-
-    log(message);
+    log("[WARNING] " + message);
 }
 
 void Logger::close() {

@@ -10,7 +10,7 @@ AutoHub::AutoHub(){
 
 AutoHub::~AutoHub(){
     std::cout << "Eliminando AutoHub" << std::endl;
-    _log.close();
+    Logger::close();
 }
 
 std::optional<std::string> AutoHub::getIp() const { if (_ip) return _ip; else return std::nullopt; }
@@ -21,21 +21,36 @@ void AutoHub::paramCollector(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; ++i) {
         std::string_view param{argv[i]};
+        if (!param.empty() && param == "-d") {
+            if (_debugMode) {
+                Logger::error("Flag -d specified multiple times");
+            }
+            _debugMode = true;
+            Logger::debug = _debugMode;
+            break;
+        }
+    }
 
-        // Check if it's a flag
+    for (int i = 1; i < argc; ++i) {
+        std::string_view param{argv[i]};
+
         if (!param.empty() && param[0] == '-') {
             if (param.size() != 2) {
-                _log.error("Invalid flag format: " + std::string(param) + ". Flags must be exactly 2 characters (e.g., -i)");
+                Logger::error("Invalid flag format: " + std::string(param) + ". Flags must be exactly 2 characters (e.g., -i)");
             }
 
             char flag = param[1];
-            switch (flag) {
+            switch (flag) {      
+                // dejar aqui
+                case 'd':
+                    break;
+
                 case 'i':
                     if (seen_i) {
-                        _log.error("Flag -i specified multiple times");
+                        Logger::error("Flag -i specified multiple times");
                     }
                     if (i + 1 >= argc) {
-                        _log.error("Flag -i requires a value (IP or domain)");
+                        Logger::error("Flag -i requires a value (IP or domain)");
                     }
                     handleIpOrDomain(argv[++i]);
                     seen_i = true;
@@ -43,10 +58,10 @@ void AutoHub::paramCollector(int argc, char* argv[]) {
 
                 case 'u':
                     if (seen_u) {
-                        _log.error("Flag -u specified multiple times");
+                        Logger::error("Flag -u specified multiple times");
                     }
                     if (i + 1 >= argc) {
-                        _log.error("Flag -u requires a user agent value");
+                        Logger::error("Flag -u requires a user agent value");
                     }
                     _userAgent = argv[++i];
                     seen_u = true;
@@ -54,90 +69,73 @@ void AutoHub::paramCollector(int argc, char* argv[]) {
 
                 case 'r':
                     if (_exportReport) {
-                        _log.error("Flag -r specified multiple times");
+                        Logger::error("Flag -r specified multiple times");
                     }
                     _exportReport = true;
                     break;
 
                 case 'G':
                     if (_graphicMode) {
-                        _log.error("Flag -G specified multiple times");
+                        Logger::error("Flag -G specified multiple times");
                     }
                     _graphicMode = true;
                     break;
 
                 default:
-                    _log.error("Unknown flag: " + std::string(param));
+                    Logger::error("Unknown flag: " + std::string(param));
             }
         } else {
-            _log.error("Unexpected parameter: " + std::string(param) + ". All parameters must start with '-'");
+            Logger::error("Unexpected parameter: " + std::string(param) + ". All parameters must start with '-'");
         }
     }
 
-    // Post-processing validation
     if (!_ip && !_domain) {
-        _log.error("Either IP or domain must be provided with -i flag");
+        Logger::error("Either IP or domain must be provided with -i flag");
     }
 }
 
 
 void AutoHub::handleIpOrDomain(std::string_view value) {
     if (value.empty()) {
-        _log.error("IP/domain value cannot be empty");
+        Logger::error("IP/domain value cannot be empty");
     }
 
     std::string val{value};
 
-    // Chequear si es una IPv4 válida
     auto isValidIPv4 = [](const std::string& ip) -> bool {
-        int dots = 0;
-        int num = 0;
-        int len = ip.length();
-        int count = 0;
-        for (int i = 0; i < len; ++i) {
-            if (ip[i] == '.') {
-                if (count == 0) return false;
-                if (++dots > 3) return false;
-                if (num < 0 || num > 255) return false;
-                num = 0;
-                count = 0;
-            } else if (std::isdigit(ip[i])) {
-                num = num * 10 + (ip[i] - '0');
-                if (++count > 3) return false;
-            } else {
-                return false;
-            }
-        }
-        if (dots != 3) return false;
-        if (num < 0 || num > 255) return false;
-        return true;
+        static const std::regex ipv4_pattern(
+            R"(^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)"
+        );
+        return std::regex_match(ip, ipv4_pattern);
     };
 
-    // Chequear si es un dominio (con o sin http/https)
-    auto isValidDomain = [](const std::string& domain) -> bool {
-        std::string d = domain;
-        // Quitar http:// or https:// Si está presente
-        if (d.rfind("http://", 0) == 0) d = d.substr(7);
-        else if (d.rfind("https://", 0) == 0) d = d.substr(8);
-
-        // Eliminar el '/' del final
-        if (!d.empty() && d.back() == '/') d.pop_back();
-
-        // El dominio debe tener al menos un punto y carácteres válidos
-        if (d.empty() || d.find('.') == std::string::npos) return false;
-        for (char c : d) {
-            if (!(std::isalnum(c) || c == '-' || c == '.' || c == '/')) return false;
-        }
-        // No puede empezar ni terminar con: '.', '-'
-        if (d.front() == '.' || d.front() == '-' || d.back() == '.' || d.back() == '-') return false;
-        return true;
+    auto isValidIPv6 = [](const std::string& ip) -> bool {
+        static const std::regex ipv6_pattern(
+            R"(^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:)((:[0-9a-fA-F]{1,4}){1,6})|(:((:[0-9a-fA-F]{1,4}){1,7}|:))|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9]))$)"
+        );
+        return std::regex_match(ip, ipv6_pattern);
     };
 
+    static const std::regex full_url_regex(
+        R"(^\s*(https?)://([a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63})*)\.[a-zA-Z]{2,}(/[^\s]*)?$)"
+    );
+
+    std::smatch match;
     if (isValidIPv4(val)) {
         _ip = val;
-    } else if (isValidDomain(val)) {
-        _domain = val;
+    } else if (isValidIPv6(val)) {
+        _ip = val;
+    } else if (std::regex_match(val, match, full_url_regex)) {
+        std::string protocol = match[1];
+        std::string domain = match[2];
+        std::string route = match.size() > 3 ? match[3].str() : "";
+
+        _domain = domain;
+        Logger::log("Detected protocol: " + protocol);
+        if (!route.empty()) {
+            Logger::log("Detected route: " + route);
+        }
     } else {
-        _log.error("Introduce una URL/IP válida.");
+        Logger::error("Introduce una URL/IP válida. Solo se permite dominio con protocolo (http/https) y ruta opcional.");
     }
 }

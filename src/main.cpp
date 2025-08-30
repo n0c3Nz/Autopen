@@ -1,4 +1,5 @@
 #include <Autopen.hpp>
+#include <Logger.hpp>
 
 namespace fs = std::filesystem;
 
@@ -7,6 +8,9 @@ int main (int argc, char *argv[]){
     if (argc < 2)
         return (std::cerr << "Por favor introduce al menos un parámetro" << std::endl, 1);
     std::cout << argv[1] << std::endl;
+
+    // Logger
+    Logger::init();
     
     AutoHub hub;
     hub.paramCollector(argc, argv);
