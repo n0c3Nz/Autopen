@@ -2,18 +2,17 @@
 
 
 AutoHub::AutoHub(){
-    
-    std::cout << "Creando Autohub" << std::endl;
     _exportReport = false;
     _graphicMode = false;
 }
 
 AutoHub::~AutoHub(){
-    std::cout << "Eliminando AutoHub" << std::endl;
     Logger::close();
 }
 
 std::optional<std::string> AutoHub::getIp() const { if (_ip) return _ip; else return std::nullopt; }
+std::optional<std::string> AutoHub::getDomain() const { if (_domain) return _domain; else return std::nullopt; }
+
 
 void AutoHub::paramCollector(int argc, char* argv[]) {
     bool seen_i = false;
@@ -26,7 +25,7 @@ void AutoHub::paramCollector(int argc, char* argv[]) {
                 Logger::error("Flag -d specified multiple times");
             }
             _debugMode = true;
-            Logger::debug = _debugMode;
+            Logger::isDebug = _debugMode;
             break;
         }
     }
@@ -102,40 +101,38 @@ void AutoHub::handleIpOrDomain(std::string_view value) {
 
     std::string val{value};
 
-    auto isValidIPv4 = [](const std::string& ip) -> bool {
-        static const std::regex ipv4_pattern(
-            R"(^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)"
-        );
-        return std::regex_match(ip, ipv4_pattern);
-    };
+    // Protocolo (opcional), IP (IPv4/IPv6), ruta (opcional)
+    static const std::regex ip_regex(
+        R"(^\s*(?:(https?)://)?((([0-9]{1,3}\.){3}[0-9]{1,3})|(\[[0-9a-fA-F:]+\]))(\/[^\s]*)?\s*$)"
+    );
 
-    auto isValidIPv6 = [](const std::string& ip) -> bool {
-        static const std::regex ipv6_pattern(
-            R"(^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(([0-9a-fA-F]{1,4}:){1,7}:)|(([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4})|(([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2})|(([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3})|(([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4})|(([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5})|([0-9a-fA-F]{1,4}:)((:[0-9a-fA-F]{1,4}){1,6})|(:((:[0-9a-fA-F]{1,4}){1,7}|:))|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9])?[0-9]))$)"
-        );
-        return std::regex_match(ip, ipv6_pattern);
-    };
-
-    static const std::regex full_url_regex(
-        R"(^\s*(https?)://([a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63})*)\.[a-zA-Z]{2,}(/[^\s]*)?$)"
+    // Protocolo (opcional), dominio, TLD, ruta (opcional)
+    static const std::regex domain_regex(
+        R"(^\s*(?:(https?)://)?([a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63})*)\.([a-zA-Z]{2,})(\/[^\s]*)?\s*$)"
     );
 
     std::smatch match;
-    if (isValidIPv4(val)) {
-        _ip = val;
-    } else if (isValidIPv6(val)) {
-        _ip = val;
-    } else if (std::regex_match(val, match, full_url_regex)) {
-        std::string protocol = match[1];
-        std::string domain = match[2];
-        std::string route = match.size() > 3 ? match[3].str() : "";
+    if (std::regex_match(val, match, ip_regex)) {
+        std::string protocol = match[1].matched ? match[1].str() : "";
+        std::string ip = match[2].str();
+        std::string route = match[6].matched ? match[6].str() : "";
+        if (route == "/") route = "";
+
+        _ip = ip;
+        Logger::log("Detected IP: " + ip);
+        if (!protocol.empty()) Logger::log("Detected protocol: " + protocol);
+        if (!route.empty()) Logger::log("Detected route: " + route);
+    } else if (std::regex_match(val, match, domain_regex)) {
+        std::string protocol = match[1].matched ? match[1].str() : "";
+        std::string domain = match[2].str() + "." + match[3].str();
+        std::string route = match[4].matched ? match[4].str() : "";
+        if (route == "/") route = "";
 
         _domain = domain;
-        Logger::log("Detected protocol: " + protocol);
-        if (!route.empty()) {
-            Logger::log("Detected route: " + route);
-        }
+        Logger::log("Detected domain: " + domain);
+        if (!protocol.empty()) Logger::log("Detected protocol: " + protocol);
+        if (!route.empty()) Logger::log("Detected route: " + route);
     } else {
-        Logger::error("Introduce una URL/IP válida. Solo se permite dominio con protocolo (http/https) y ruta opcional.");
+        Logger::error("Introduce una URL/IP válida. Se permite IP o dominio, con o sin protocolo (http/https), ruta y TLD.");
     }
 }

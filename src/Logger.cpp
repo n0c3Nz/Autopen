@@ -5,7 +5,7 @@ namespace fs = std::filesystem;
 // Static member definitions
 std::ofstream Logger::_logger;
 bool Logger::_initialized = false;
-bool Logger::debug = false;
+bool Logger::isDebug = false;
 
 void Logger::init(const std::string& logDir) {
     if (_initialized) return;
@@ -21,6 +21,10 @@ void Logger::init(const std::string& logDir) {
     _initialized = true;
 }
 
+void Logger::debug(const std::string& message) {
+    std::cerr << message << std::endl;
+}
+
 void Logger::log(const std::string& message) {
     if (!_initialized) {
         std::cerr << "[Logger] Not initialized. Message: " << message << std::endl;
@@ -28,13 +32,14 @@ void Logger::log(const std::string& message) {
     }
     _logger << message << std::endl;
 
-    if (debug) {
+    if (isDebug) {
         std::cerr << message << std::endl;
     }
 }
 
 void Logger::error(const std::string& message){
     log("[ERROR] " + message);
+    debug("[ERROR] " + message);
     exit(1);
 }
 

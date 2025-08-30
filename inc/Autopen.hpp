@@ -18,6 +18,7 @@ class AutoHub {
 public:
     void paramCollector(int argc, char* argv[]);
     std::optional<std::string> getIp() const;
+    std::optional<std::string> getDomain() const;
     AutoHub();
     ~AutoHub();
 

@@ -7,16 +7,19 @@ int main (int argc, char *argv[]){
     // Arguments
     if (argc < 2)
         return (std::cerr << "Por favor introduce al menos un parámetro" << std::endl, 1);
-    std::cout << argv[1] << std::endl;
 
     // Logger
     Logger::init();
     
     AutoHub hub;
     hub.paramCollector(argc, argv);
-    std::optional<std::string> ip = hub.getIp();
-    if (ip)
+    auto domain = hub.getDomain();
+    auto ip = hub.getIp();
+    if (domain) {
+        std::cout << "Domain: " << *domain << std::endl;
+    } else if (ip) {
         std::cout << "Ip: " << *ip << std::endl;
+    }
 
     return 0;
 }
