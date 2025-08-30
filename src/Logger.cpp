@@ -28,12 +28,11 @@ void Logger::log(const std::string& message) {
     if (!_initialized) {
         init();
     }
-    _logger << message << std::endl;
+    std::cerr << message << std::endl;
 }
 
 void Logger::error(const std::string& message){
     //*message.insert(0, "[ERROR] ");
-
     log(message);
     exit(1);
 }
