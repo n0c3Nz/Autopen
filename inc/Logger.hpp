@@ -1,6 +1,10 @@
 #pragma once
-
-#include <Autopen.hpp>
+#include <fstream>
+#include <cstdlib>
+#include <optional>
+#include <iostream>
+#include <filesystem>
+#include <Date.hpp>
 
 class Logger {
     public:
