@@ -83,13 +83,58 @@ void AutoHub::handleIpOrDomain(std::string_view value) {
     if (value.empty()) {
         _log.error("IP/domain value cannot be empty");
     }
-    std::cout << "Debugueando" << std::endl;
-    // Simple check to distinguish between domain and IP
-    if (value[0] == 'h' || value.find('.') != std::string_view::npos) {
-        _domain = value;
-    } else if (std::all_of(value.begin(), value.end(), 
-                            [](char c) { return std::isdigit(c) || c == '.'; })) {
-        _ip = value;
+
+    std::string val{value};
+
+    // Chequear si es una IPv4 válida
+    auto isValidIPv4 = [](const std::string& ip) -> bool {
+        int dots = 0;
+        int num = 0;
+        int len = ip.length();
+        int count = 0;
+        for (int i = 0; i < len; ++i) {
+            if (ip[i] == '.') {
+                if (count == 0) return false;
+                if (++dots > 3) return false;
+                if (num < 0 || num > 255) return false;
+                num = 0;
+                count = 0;
+            } else if (std::isdigit(ip[i])) {
+                num = num * 10 + (ip[i] - '0');
+                if (++count > 3) return false;
+            } else {
+                return false;
+            }
+        }
+        if (dots != 3) return false;
+        if (num < 0 || num > 255) return false;
+        return true;
+    };
+
+    // Chequear si es un dominio (con o sin http/https)
+    auto isValidDomain = [](const std::string& domain) -> bool {
+        std::string d = domain;
+        // Quitar http:// or https:// Si está presente
+        if (d.rfind("http://", 0) == 0) d = d.substr(7);
+        else if (d.rfind("https://", 0) == 0) d = d.substr(8);
+
+        // Eliminar el '/' del final
+        if (!d.empty() && d.back() == '/') d.pop_back();
+
+        // El dominio debe tener al menos un punto y carácteres válidos
+        if (d.empty() || d.find('.') == std::string::npos) return false;
+        for (char c : d) {
+            if (!(std::isalnum(c) || c == '-' || c == '.' || c == '/')) return false;
+        }
+        // Cannot start or end with dot or dash
+        if (d.front() == '.' || d.front() == '-' || d.back() == '.' || d.back() == '-') return false;
+        return true;
+    };
+
+    if (isValidIPv4(val)) {
+        _ip = val;
+    } else if (isValidDomain(val)) {
+        _domain = val;
     } else {
         _log.error("Introduce una URL/IP válida.");
     }
