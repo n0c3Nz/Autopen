@@ -13,6 +13,8 @@ AutoHub::~AutoHub(){
     _log.close();
 }
 
+std::optional<std::string> AutoHub::getIp() const { if (_ip) return _ip; else return std::nullopt; }
+
 void AutoHub::paramCollector(int argc, char* argv[]) {
     bool seen_i = false;
     bool seen_u = false;
@@ -126,7 +128,7 @@ void AutoHub::handleIpOrDomain(std::string_view value) {
         for (char c : d) {
             if (!(std::isalnum(c) || c == '-' || c == '.' || c == '/')) return false;
         }
-        // Cannot start or end with dot or dash
+        // No puede empezar ni terminar con: '.', '-'
         if (d.front() == '.' || d.front() == '-' || d.back() == '.' || d.back() == '-') return false;
         return true;
     };

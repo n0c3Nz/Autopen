@@ -10,7 +10,9 @@ int main (int argc, char *argv[]){
     
     AutoHub hub;
     hub.paramCollector(argc, argv);
+    std::optional<std::string> ip = hub.getIp();
+    if (ip)
+        std::cout << "Ip: " << *ip << std::endl;
 
-    std::cout << "Llega aqui" << std::endl;
     return 0;
 }
